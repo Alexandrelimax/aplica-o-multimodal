@@ -1,0 +1,16 @@
+#backend
+fastapi==0.115.0
+langchain
+langchain-community==0.3.2
+google-cloud-bigquery
+langchain-google-genai
+langchain_google_vertexai
+vertexai
+pandas
+langchain-google-community[featurestore]
+beautifulsoup4
+docx2txt==0.8
+pypdf==5.0.0
+uvicorn==0.31.1
+python-dotenv==1.0.1
+python-multipart==0.0.12
