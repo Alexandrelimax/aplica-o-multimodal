@@ -7,18 +7,26 @@ from services.prompt_service import PromptService
 from handlers.file_handler import FileHandler
 
 from repositories.storage_repository import StorageRepository
+from repositories.context_repository import ContextRepository
+
+from cache.redis_cache import RedisCacheClient
+
 
 app = FastAPI()
 
+# Configura o Redis (Memory Store) e o contexto do repositório
+redis_cache = RedisCacheClient(host="your-redis-host", port=6379, db=0)
+
 # Instancia os repositórios
 storage_repository = StorageRepository(bucket_name="your-bucket-name")
+context_repository = ContextRepository(bucket_name="your-bucket-name")
 
 # Instancia os serviços
-local_file_service = FileHandler()
-generation_service = GenerationService(storage_repository, local_file_service)
-prompt_service = PromptService()
+file_handler = FileHandler()
+generation_service = GenerationService(storage_repository, file_handler)
+prompt_service = PromptService(cache_client=redis_cache, context_repository=context_repository)
 
-# Instancia os controladores e associa os serviços necessários
+# Instancia os controladores
 content_controller = ContentController(generation_service)
 prompt_controller = PromptController(prompt_service)
 
@@ -27,7 +35,8 @@ app.include_router(content_controller.router)
 app.include_router(prompt_controller.router)
 
 
-# Rota principal para verificação
+
 @app.get("/")
 def read_root():
-    return {"message": "Teste API"}
+    return {"message": "API is running"}
+

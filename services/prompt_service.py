@@ -1,41 +1,37 @@
-from repositories.context_repository import ContextRepository
 import json
+from repositories.context_repository import ContextRepository
+from cache.redis_cache import RedisCacheClient
 
 class PromptService:
-    def __init__(self, cache_client, context_repository: ContextRepository):
+    def __init__(self, cache_client: RedisCacheClient, context_repository: ContextRepository):
         self.cache_client = cache_client
         self.context_repository = context_repository
-        self.is_gae_env = os.getenv('GAE_ENV', "") == "standard"
-        self.global_loaded_prompts = dict()
 
-    def get_loaded_prompts(self):
-        # Carrega prompts do cache ou do Google Cloud Storage via ContextRepository
-        user = get_iap_user()
-        if user not in self.global_loaded_prompts:
-            loaded_prompts = []
-            if self.is_gae_env:
-                cached_prompts = self.cache_client.get(user)
-                if cached_prompts is None:
-                    self.cache_client.add(user, json.dumps(loaded_prompts), 14400)
-                else:
-                    loaded_prompts = json.loads(cached_prompts)
-            self.global_loaded_prompts[user] = loaded_prompts
-        return self.global_loaded_prompts[user]
+    def get_loaded_prompts(self, user_email: str):
+        cached_prompts = self.cache_client.get(user_email)
+        if cached_prompts is None:
+            loaded_prompts = self.context_repository.load_prompt_context(user_email)
+            self.cache_client.add(user_email, loaded_prompts)  # Cacheia os prompts
+            return loaded_prompts
+        return cached_prompts
 
-    def save_loaded_prompts(self, prompt, project_name, filename):
-        # Salva prompts no cache e em um contexto via ContextRepository
-        loaded_prompts = self.get_loaded_prompts()
+    def save_loaded_prompts(self, user_email: str, prompt: str, project_name: str, filename: str):
+        loaded_prompts = self.get_loaded_prompts(user_email)
         loaded_prompts.append((prompt, project_name, filename))
-        self.global_loaded_prompts[get_iap_user()] = loaded_prompts
-        self.context_repository.save_prompt_context(project_name, filename, json.dumps(loaded_prompts))
+        
+        self.cache_client.add(user_email, loaded_prompts)
+        self.context_repository.save_prompt_context(user_email, project_name, filename, json.dumps(loaded_prompts))
 
-    def delete_prompt(self, prompt_id: int):
-        # Remove um prompt específico
-        loaded_prompts = self.get_loaded_prompts()
+    def delete_prompt(self, user_email: str, prompt_id: int):
+        loaded_prompts = self.get_loaded_prompts(user_email)
         if 0 <= prompt_id < len(loaded_prompts):
             del loaded_prompts[prompt_id]
-        self.save_loaded_prompts(loaded_prompts)
+            self.cache_client.add(user_email, loaded_prompts)
 
-    def reset_prompts(self):
-        # Reseta os prompts no cache
-        self.save_loaded_prompts([])
+            # Opcional: Atualizar também no ContextRepository se necessário
+            self.context_repository.save_prompt_context(user_email, "", "", json.dumps(loaded_prompts))
+
+    def reset_prompts(self, user_email: str):
+        # Limpa os prompts no Redis e no contexto
+        self.cache_client.add(user_email, [])  # Zera os prompts no cache
+        self.context_repository.reset_prompt_context(user_email)
