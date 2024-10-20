@@ -1,0 +1,26 @@
+steps:
+  # Passo 1: Construir a imagem Docker
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-t', 'gcr.io/$PROJECT_ID/app-image', '.']
+
+  # Passo 2: Fazer o push da imagem para o Container Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'gcr.io/$PROJECT_ID/app-image']
+
+  # Passo 3: Autenticar no Terraform, inicializar, planejar e aplicar
+  - name: 'hashicorp/terraform:light'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        terraform init
+        terraform plan -out=tfplan
+        terraform apply -auto-approve tfplan
+
+# Substituições de variáveis de ambiente para uso no processo
+substitutions:
+  _PROJECT_ID: "seu-id-do-projeto"
+  _REGION: "us-central1"
+
+# Timeout máximo para execução
+timeout: '1200s'

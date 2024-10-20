@@ -1,0 +1,22 @@
+# Diretórios do sistema
+**/.git
+**/.gitignore
+**/.DS_Store
+**/.vscode
+**/__pycache__
+**/*.pyc
+
+# Arquivos de configuração locais
+.env
+docker-compose.yml
+terraform/
+.cloudbuild/
+backend.tf
+.tfvars
+*.tfstate
+*.tfstate.*
+
+Copiar código
+venv/
+
+.git/
